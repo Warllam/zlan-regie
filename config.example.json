@@ -1,0 +1,9 @@
+{
+  "steam": {
+    "apiKey": "YOUR_STEAM_API_KEY_HERE",
+    "players": {
+      "warllam": "STEAM_ID_64",
+      "ryroy":   "STEAM_ID_64"
+    }
+  }
+}

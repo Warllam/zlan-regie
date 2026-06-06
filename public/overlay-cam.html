@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: transparent;
+      width: 1920px; height: 1080px;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #F1F5F9;
+    }
+
+    canvas#fx { position: absolute; bottom: 0; left: 0; pointer-events: none; z-index: 0; }
+
+    /* ── Barre bas ─────────────────────────────────────── */
+    .bar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 1; }
+
+    .bar-fade {
+      height: 70px;
+      background: linear-gradient(transparent, rgba(3,1,8,0.92));
+    }
+
+    .bar-body {
+      position: relative;
+      background: rgba(3,1,8,0.97);
+      padding: 11px 30px 15px;
+      overflow: hidden;
+    }
+
+    /* Ligne RGB qui défile */
+    .bar-body::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg,
+        #F43F5E, #F97316, #F59E0B, #22C55E, #38BDF8, #A78BFA, #F43F5E
+      );
+      background-size: 400% 100%;
+      animation: rgbFlow 3s linear infinite;
+    }
+    @keyframes rgbFlow {
+      0%   { background-position: 0% 0%; }
+      100% { background-position: 400% 0%; }
+    }
+
+    /* Scanline qui descend */
+    .scanline {
+      position: absolute; left: 0; right: 0; height: 80px; top: 0;
+      background: linear-gradient(transparent, rgba(255,255,255,0.02) 50%, transparent);
+      animation: scan 2.5s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes scan {
+      0%   { top: -80px; }
+      100% { top: 100%; }
+    }
+
+    /* Grille hexadécimale en fond */
+    .bar-body::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(rgba(244,63,94,0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      animation: gridDrift 20s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes gridDrift {
+      0%   { background-position: 0 0; }
+      100% { background-position: 28px 28px; }
+    }
+
+    /* ── Row 1 ─────────────────────────────────────────── */
+    .row1 {
+      display: flex; align-items: center; gap: 22px;
+      margin-bottom: 11px; position: relative; z-index: 1;
+    }
+
+    .zlan-tag {
+      font-size: 8px; text-transform: uppercase; letter-spacing: 3px; font-weight: 700;
+      background: linear-gradient(90deg, #F43F5E, #A78BFA, #38BDF8, #F43F5E);
+      background-size: 300% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+      animation: gradShift 4s linear infinite;
+      margin-bottom: 4px;
+      padding: 4px 10px;
+    }
+    @keyframes gradShift {
+      0%   { background-position: 0% 0%; }
+      100% { background-position: 300% 0%; }
+    }
+
+    .game-block { display: flex; align-items: center; gap: 13px; }
+
+    .game-icon {
+      width: 54px; height: 54px; border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 27px; flex-shrink: 0;
+      border: 2px solid #F43F5E;
+      background: rgba(244,63,94,0.12);
+      transition: border-color .5s, background .5s, box-shadow .5s;
+      animation: iconFloat 3.5s ease-in-out infinite;
+    }
+    @keyframes iconFloat {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-5px); }
+    }
+
+    .game-name {
+      font-size: 27px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; line-height: 1;
+      transition: color .5s, text-shadow .5s;
+    }
+    .phase-pill {
+      display: inline-block; margin-top: 5px;
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+      border-radius: 20px; padding: 2px 10px;
+      transition: color .5s, border-color .5s, background .5s;
+      animation: pillBreath 3s ease infinite;
+    }
+    @keyframes pillBreath {
+      0%,100% { opacity: .85; }
+      50%      { opacity: 1; }
+    }
+
+    .spacer { flex: 1; }
+
+    .timers { display: flex; align-items: center; gap: 26px; }
+
+    .timer-label {
+      font-size: 8px; text-transform: uppercase; letter-spacing: 2px;
+      color: rgba(255,255,255,0.28); margin-bottom: 3px;
+    }
+
+    .timer-val {
+      font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums;
+      letter-spacing: 3px; color: #F1F5F9; line-height: 1;
+      transition: color .3s, text-shadow .3s;
+    }
+    .timer-val.running {
+      color: #22C55E;
+      animation: timerGlow 1.2s ease infinite;
+    }
+    @keyframes timerGlow {
+      0%,100% { text-shadow: 0 0 15px rgba(34,197,94,0.5); }
+      50%      { text-shadow: 0 0 35px rgba(34,197,94,1), 0 0 70px rgba(34,197,94,0.4); }
+    }
+    .timer-val.urgent {
+      color: #EF4444;
+      animation: blink .4s ease infinite alternate;
+    }
+    @keyframes blink { to { opacity: .2; text-shadow: none; } }
+    .timer-val.empty { color: rgba(255,255,255,0.12); font-size: 24px; letter-spacing: 2px; }
+
+    .vsep { width: 1px; height: 42px; background: rgba(255,255,255,0.07); }
+
+    /* Vies */
+    .hearts-row { display: flex; gap: 2px; font-size: 20px; margin-top: 2px; }
+    .heart:not(.lost) { animation: hb 1.6s ease infinite; }
+    .heart:nth-child(2):not(.lost) { animation-delay: .2s; }
+    .heart:nth-child(3):not(.lost) { animation-delay: .4s; }
+    @keyframes hb {
+      0%,100% { transform: scale(1); }
+      15%     { transform: scale(1.18); }
+      30%     { transform: scale(1); }
+    }
+    .heart.lost { filter: grayscale(1); opacity: .18; }
+
+    .gleft-val {
+      font-size: 30px; font-weight: 800; color: #F59E0B; line-height: 1; margin-top: 2px;
+      animation: goldGlow 2s ease infinite;
+    }
+    @keyframes goldGlow {
+      0%,100% { text-shadow: 0 0 12px rgba(245,158,11,0.35); }
+      50%      { text-shadow: 0 0 28px rgba(245,158,11,0.9), 0 0 55px rgba(245,158,11,0.35); }
+    }
+
+    /* ── Row 2 : joueurs ───────────────────────────────── */
+    .row2 {
+      display: flex; align-items: stretch; height: 46px;
+      position: relative; z-index: 1;
+    }
+
+    .team-block { flex: 1; display: flex; }
+
+    .team-divider {
+      width: 1px; background: rgba(255,255,255,0.08); margin: 0 20px; flex-shrink: 0;
+      animation: sepPulse 2s ease infinite;
+    }
+    @keyframes sepPulse {
+      0%,100% { opacity: .3; }
+      50%      { opacity: 1; box-shadow: 0 0 8px rgba(244,63,94,0.5); }
+    }
+
+    .player-slot {
+      flex: 1; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    }
+    .player-slot + .player-slot { border-left: 1px solid rgba(255,255,255,0.05); }
+
+    .p-badge {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; flex-shrink: 0;
+    }
+    .badge-w {
+      background: rgba(244,63,94,0.18); color: #F43F5E;
+      border: 1px solid rgba(244,63,94,0.5);
+      animation: glowW 2.2s ease infinite;
+    }
+    @keyframes glowW {
+      0%,100% { box-shadow: 0 0 6px rgba(244,63,94,0.3); }
+      50%      { box-shadow: 0 0 18px rgba(244,63,94,0.8), 0 0 35px rgba(244,63,94,0.25); }
+    }
+    .badge-r {
+      background: rgba(167,139,250,0.18); color: #A78BFA;
+      border: 1px solid rgba(167,139,250,0.5);
+      animation: glowR 2.2s ease infinite .5s;
+    }
+    @keyframes glowR {
+      0%,100% { box-shadow: 0 0 6px rgba(167,139,250,0.3); }
+      50%      { box-shadow: 0 0 18px rgba(167,139,250,0.8), 0 0 35px rgba(167,139,250,0.25); }
+    }
+    .badge-o {
+      background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.35);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .p-info { flex: 1; min-width: 0; }
+    .p-name {
+      font-size: 11px; font-weight: 600; line-height: 1; margin-bottom: 5px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .name-w   { color: #F43F5E; }
+    .name-r   { color: #A78BFA; }
+    .name-opp { color: rgba(255,255,255,0.42); }
+
+    .bar-track {
+      height: 6px; border-radius: 3px; overflow: hidden;
+      background: rgba(255,255,255,0.07); position: relative;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 3px; width: 0%;
+      transition: width 1.6s cubic-bezier(0.22,1,0.36,1);
+      position: relative; overflow: hidden;
+    }
+    .fill-w {
+      background: linear-gradient(90deg, #9F1239, #F43F5E, #FF8096);
+      box-shadow: 0 0 10px rgba(244,63,94,0.7);
+    }
+    .fill-r {
+      background: linear-gradient(90deg, #5B21B6, #A78BFA, #C4B5FD);
+      box-shadow: 0 0 10px rgba(167,139,250,0.7);
+    }
+    .fill-opp { background: linear-gradient(90deg, #374151, #9CA3AF); }
+
+    /* Shimmer continu */
+    .bar-fill::after {
+      content: ''; position: absolute; top: 0; left: -70%; width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+      animation: shimmer 2s ease-in-out infinite;
+    }
+    .player-slot:nth-child(1) .bar-fill::after { animation-delay: 0s; }
+    .player-slot:nth-child(2) .bar-fill::after { animation-delay: 0.5s; }
+    .player-slot:nth-child(3) .bar-fill::after { animation-delay: 1s; }
+    .player-slot:nth-child(4) .bar-fill::after { animation-delay: 1.5s; }
+    @keyframes shimmer {
+      0%   { left: -70%; }
+      100% { left: 120%; }
+    }
+
+    .p-h {
+      font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
+      flex-shrink: 0; min-width: 44px; text-align: right; line-height: 1;
+    }
+    .h-w   { color: #F43F5E; text-shadow: 0 0 12px rgba(244,63,94,0.5); }
+    .h-r   { color: #A78BFA; text-shadow: 0 0 12px rgba(167,139,250,0.5); }
+    .h-opp { color: rgba(255,255,255,0.38); }
+
+    .no-data {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: rgba(255,255,255,0.18); letter-spacing: 1px;
+    }
+
+    /* Records Rubik's */
+    .records-block {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 90px;
+    }
+    .record-item { display: flex; align-items: center; gap: 14px; }
+    .record-name { font-size: 11px; font-weight: 600; margin-bottom: 3px; letter-spacing: .5px; }
+    .record-time {
+      font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
+    }
+    .rec-w { color: #F43F5E; animation: glowW 2s ease infinite; }
+    .rec-r { color: #A78BFA; animation: glowR 2s ease infinite .4s; }
+  </style>
+</head>
+<body>
+
+<canvas id="fx"></canvas>
+
+<div class="bar">
+  <div class="bar-fade"></div>
+  <div class="bar-body">
+    <div class="scanline"></div>
+
+    <div class="row1">
+      <div>
+        <div class="zlan-tag">ZLAN 2026</div>
+        <div class="game-block">
+          <div class="game-icon" id="g-icon">🎮</div>
+          <div>
+            <div class="game-name" id="g-name">En attente</div>
+            <div class="phase-pill" id="phase">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="timers">
+        <div id="lives-wrap" style="display:none">
+          <div class="timer-label">Vies</div>
+          <div class="hearts-row">
+            <span class="heart" id="hrt1">❤️</span>
+            <span class="heart" id="hrt2">❤️</span>
+            <span class="heart" id="hrt3">❤️</span>
+          </div>
+        </div>
+
+        <div id="gleft-wrap" style="display:none">
+          <div class="timer-label">Jeux restants</div>
+          <div class="gleft-val" id="gleft-val">0</div>
+        </div>
+
+        <div class="vsep" id="ko-sep" style="display:none"></div>
+
+        <div>
+          <div class="timer-label">Jeu</div>
+          <div class="timer-val empty" id="timer">--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row2" id="row2">
+      <div class="no-data">Sélectionne un jeu</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Canvas : particules flottantes ──────────────────────
+  const canvas = document.getElementById('fx');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = 1920;
+  canvas.height = 180;
+  canvas.style.cssText = 'position:absolute;bottom:0;left:0;width:1920px;height:180px;pointer-events:none;z-index:0';
+
+  const COLS = ['#F43F5E','#A78BFA','#38BDF8','#F59E0B','#22C55E'];
+  const pts  = Array.from({length: 40}, () => ({
+    x: Math.random() * 1920,
+    y: Math.random() * 180,
+    r: Math.random() * 1.6 + 0.4,
+    vy: -(Math.random() * 0.5 + 0.15),
+    vx: (Math.random() - 0.5) * 0.25,
+    a: Math.random() * 0.35 + 0.08,
+    c: COLS[Math.floor(Math.random() * COLS.length)]
+  }));
+
+  (function tick() {
+    ctx.clearRect(0, 0, 1920, 180);
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.c;
+      ctx.globalAlpha = p.a;
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.y < 0) { p.y = 180; p.x = Math.random() * 1920; }
+      if (p.x < 0 || p.x > 1920) p.vx *= -1;
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  })();
+
+  // ── WebSocket ───────────────────────────────────────────
+  let state = null;
+  function connect() {
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') { state = msg.data; render(); }
+    };
+    ws.onclose = () => setTimeout(connect, 2000);
+  }
+
+  function fmtH(h) {
+    if (h == null) return '?h';
+    if (h === 0)   return '0h';
+    if (h < 10)    return h.toFixed(1) + 'h';
+    return Math.round(h) + 'h';
+  }
+
+  function slot(bc, nc, fc, hc, pseudo, pct, hours) {
+    return `<div class="player-slot">
+      <div class="p-badge ${bc}">${pseudo.slice(0,2).toUpperCase()}</div>
+      <div class="p-info">
+        <div class="p-name ${nc}">${pseudo}</div>
+        <div class="bar-track"><div class="bar-fill ${fc}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="p-h ${hc}">${fmtH(hours)}</div>
+    </div>`;
+  }
+
+  function renderRow2() {
+    const el   = document.getElementById('row2');
+    const gId  = state.game?.id;
+    const h    = state.steamHours || {};
+    const hasOpp = state.hasOpponents !== false;
+    const opp    = state.opponent || {};
+
+    if (gId === 'rubiks') {
+      const r = state.records || {};
+      el.innerHTML = `<div class="records-block">
+        <div class="record-item">
+          <div class="p-badge badge-w">W</div>
+          <div><div class="record-name rec-w">Warllam</div><div class="record-time rec-w">${r.warllam||'—'}</div></div>
+        </div>
+        <div class="record-item">
+          <div class="p-badge badge-r">R</div>
+          <div><div class="record-name rec-r">Ryroy</div><div class="record-time rec-r">${r.ryroy||'—'}</div></div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    if (!gId) { el.innerHTML = '<div class="no-data">Sélectionne un jeu</div>'; return; }
+
+    const wH  = h.warllam?.[gId] ?? null;
+    const rH  = h.ryroy?.[gId]   ?? null;
+    const o1H = hasOpp ? (h.opp1?.[gId] ?? null) : null;
+    const o2H = hasOpp ? (h.opp2?.[gId] ?? null) : null;
+
+    if ([wH,rH,o1H,o2H].every(v => !v)) {
+      el.innerHTML = '<div class="no-data">Pas de données Steam pour ce jeu</div>';
+      return;
+    }
+
+    const opp1 = opp.player1?.pseudo || 'Adversaire 1';
+    const opp2 = opp.player2?.pseudo || 'Adversaire 2';
+    const max  = Math.max(wH??0, rH??0, o1H??0, o2H??0, 1);
+    const pct  = v => v != null ? (v / max * 100).toFixed(1) : 0;
+
+    el.innerHTML = hasOpp
+      ? `<div class="team-block">
+           ${slot('badge-w','name-w','fill-w','h-w','Warllam',pct(wH),wH)}
+           ${slot('badge-r','name-r','fill-r','h-r','Ryroy',  pct(rH),rH)}
+         </div>
+         <div class="team-divider"></div>
+         <div class="team-block">
+           ${slot('badge-o','name-opp','fill-opp','h-opp',opp1,pct(o1H),o1H)}
+           ${slot('badge-o','name-opp','fill-opp','h-opp',opp2,pct(o2H),o2H)}
+         </div>`
+      : `<div class="team-block" style="max-width:800px;margin:0 auto">
+           ${slot('badge-w','name-w','fill-w','h-w','Warllam',pct(wH),wH)}
+           ${slot('badge-r','name-r','fill-r','h-r','Ryroy',  pct(rH),rH)}
+         </div>`;
+  }
+
+  function render() {
+    if (!state) return;
+    const accent = state.game?.accent || '#F43F5E';
+
+    document.getElementById('g-icon').textContent       = state.game?.emoji || '🎮';
+    document.getElementById('g-name').textContent       = state.game?.name  || 'En attente';
+    document.getElementById('g-name').style.color       = accent;
+    document.getElementById('g-name').style.textShadow  = `0 0 30px ${accent}66`;
+    document.getElementById('g-icon').style.borderColor = accent;
+    document.getElementById('g-icon').style.background  = accent + '22';
+    document.getElementById('g-icon').style.boxShadow   = `0 0 22px ${accent}55, 0 0 60px ${accent}22`;
+    document.getElementById('phase').textContent        = state.phase?.label || '—';
+    document.getElementById('phase').style.color        = accent;
+    document.getElementById('phase').style.background   = accent + '18';
+    document.getElementById('phase').style.borderColor  = accent + '55';
+    document.getElementById('phase').style.border       = `1px solid ${accent}55`;
+
+    const isKO = state.phase?.id === 'knockout';
+    document.getElementById('lives-wrap').style.display = isKO ? 'block' : 'none';
+    document.getElementById('gleft-wrap').style.display = isKO ? 'block' : 'none';
+    document.getElementById('ko-sep').style.display     = isKO ? 'block' : 'none';
+    if (isKO) {
+      for (let i = 1; i <= 3; i++)
+        document.getElementById(`hrt${i}`).classList.toggle('lost', i > state.lives);
+      document.getElementById('gleft-val').textContent = state.gamesLeft ?? 0;
+    }
+
+    renderRow2();
+  }
+
+  function getTimerVal() {
+    if (!state?.timer) return null;
+    const t = state.timer;
+    if (!t.running && t.initialValue === 0) return null;
+    if (!t.running || !t.startTime) return t.initialValue;
+    const e = (Date.now() - t.startTime) / 1000;
+    return t.direction === 'down' ? Math.max(0, t.initialValue - e) : t.initialValue + e;
+  }
+
+  function fmt(s) {
+    s = Math.floor(Math.abs(s));
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  setInterval(() => {
+    if (!state) return;
+    const val = getTimerVal();
+    const el  = document.getElementById('timer');
+    if (val === null) {
+      el.textContent = '--:--'; el.className = 'timer-val empty';
+    } else {
+      el.textContent = fmt(val); el.className = 'timer-val';
+      if (state.timer.running) el.classList.add('running');
+      if (state.timer.direction === 'down' && val < 30 && val > 0 && state.timer.running)
+        el.classList.add('urgent');
+    }
+  }, 100);
+
+  connect();
+</script>
+</body>
+</html>

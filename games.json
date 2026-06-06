@@ -1,0 +1,74 @@
+[
+  {
+    "id": "rocket_boots",
+    "name": "Rocket Boots Mania",
+    "emoji": "🚀",
+    "accent": "#00C8FF",
+    "phases": ["Seeding", "Éliminatoires"],
+    "rule": "Mode Rounds (Seeding) ou Cup (Élim). Points selon ordre d'arrivée. Neutral jump interdit."
+  },
+  {
+    "id": "rubiks",
+    "name": "Rubik's Cube",
+    "emoji": "🧩",
+    "accent": "#FF6B35",
+    "phases": ["Seeding"],
+    "rule": "Compétition standard de speed-cubing. Classement par temps."
+  },
+  {
+    "id": "aoe4",
+    "name": "Age of Empires IV",
+    "emoji": "⚔️",
+    "accent": "#C8AA6E",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "Nomade, FFA 8 joueurs en relais (échange toutes les 5 min). 45 min max. Victoire par Monument / Sacré / Merveille / Dominion."
+  },
+  {
+    "id": "gorilla",
+    "name": "Gorilla Showdown",
+    "emoji": "🦍",
+    "accent": "#4CAF50",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "2v2v2v2 : 3 parties cumulées, mode Classique équipe, 10 min/partie. 2v2 : Bo3 Charge Utile, 4 min/segment."
+  },
+  {
+    "id": "satisfactory",
+    "name": "Satisfactory",
+    "emoji": "🏭",
+    "accent": "#FF9800",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "Bingo 2v2v2v2 ou 2v2 (45 min). 1 point par tâche + bonus ligne/colonne/diagonale."
+  },
+  {
+    "id": "street_fighter",
+    "name": "Street Fighter 6",
+    "emoji": "🥊",
+    "accent": "#F44336",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "Bo3. J1 vs J1 puis J2 vs J2. Si 1-1, les perdants s'affrontent. 1v1, 3 rounds, 99s. Pause = défaite de manche."
+  },
+  {
+    "id": "super_golf",
+    "name": "Super Battle Golf",
+    "emoji": "⛳",
+    "accent": "#8BC34A",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "9 parcours tirés au sort. Score = somme ingame par équipe. Objets selon position."
+  },
+  {
+    "id": "worms",
+    "name": "Worms WMD",
+    "emoji": "🐛",
+    "accent": "#9C27B0",
+    "phases": ["Knockout", "Éliminatoires"],
+    "rule": "2v2 ou 2v2v2. 8 vers/joueur (Apocalypze) ou 4 (ProgamerZ). Skins modifiant la taille interdits. Bo1."
+  },
+  {
+    "id": "mystere",
+    "name": "Jeu Mystère",
+    "emoji": "❓",
+    "accent": "#7C3AED",
+    "phases": ["Finale"],
+    "rule": "Révélé le jour de la Finale. Réservé au Top 4."
+  }
+]

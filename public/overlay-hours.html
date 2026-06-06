@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; font-family: 'Segoe UI', system-ui, sans-serif; padding: 10px; }
+
+    /* ---- Panel ---- */
+    .panel {
+      background: rgba(9, 5, 12, 0.93);
+      border: 1px solid rgba(244,63,94,0.2);
+      border-top: 2px solid #F43F5E;
+      border-radius: 14px;
+      padding: 13px 14px;
+      width: 370px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Glow pulse on entire panel */
+    @keyframes panelGlow {
+      0%,100% { box-shadow: 0 0 18px rgba(244,63,94,0.10); }
+      50%      { box-shadow: 0 0 40px rgba(244,63,94,0.28); }
+    }
+    .panel { animation: panelGlow 5s ease infinite; }
+
+    /* Scanline texture */
+    .panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(244,63,94,0.015) 0px,
+        rgba(244,63,94,0.015) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      border-radius: 14px;
+    }
+
+    /* ---- Header ---- */
+    .hd {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(244,63,94,0.12);
+    }
+    .hd-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: #F43F5E;
+      font-weight: 700;
+    }
+    .hd-time {
+      font-size: 10px;
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ---- Players header ---- */
+    .players-hd {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .pname {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 5px 8px;
+      border-radius: 7px;
+    }
+    .pname-me {
+      color: #F43F5E;
+      background: rgba(244,63,94,0.12);
+      border: 1px solid rgba(244,63,94,0.3);
+    }
+    .pname-mate {
+      color: #c084fc;
+      background: rgba(192,132,252,0.12);
+      border: 1px solid rgba(192,132,252,0.3);
+    }
+
+    /* ---- Game block ---- */
+    .gblock { margin-bottom: 11px; }
+    .gblock:last-child { margin-bottom: 0; }
+
+    .gtitle {
+      font-size: 10px;
+      color: rgba(255,255,255,0.38);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .gem { font-size: 13px; }
+
+    /* Bar rows */
+    .bar-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+    .bar-track {
+      height: 9px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      width: 0%;
+      transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Rose gradient — me */
+    .bar-me { background: linear-gradient(90deg, #9F1239, #F43F5E, #FF869E); }
+    /* Violet/purple gradient — mate */
+    .bar-mate { background: linear-gradient(90deg, #6B21A8, #A855F7, #c084fc); }
+
+    /* Shimmer */
+    @keyframes shimmer {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(400%); }
+    }
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 25%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+      animation: shimmer 2.8s ease-in-out infinite;
+      animation-delay: var(--sd, 0s);
+    }
+
+    /* Leader glow */
+    .bar-fill.leader-me   { box-shadow: 0 0 10px rgba(244,63,94,0.55); }
+    .bar-fill.leader-mate { box-shadow: 0 0 10px rgba(168,85,247,0.55); }
+
+    /* Hours label */
+    .bhours {
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 38px;
+      text-align: right;
+      color: rgba(255,255,255,0.45);
+      transition: color 0.4s;
+    }
+    .bhours.leader-me   { color: #F43F5E; }
+    .bhours.leader-mate { color: #c084fc; }
+
+    /* Trophy on winner */
+    .bhours.leader-me::after,
+    .bhours.leader-mate::after {
+      content: ' 🏆';
+      font-size: 10px;
+    }
+
+    /* ---- States ---- */
+    .loading, .no-data {
+      text-align: center;
+      padding: 18px;
+      font-size: 11px;
+      color: rgba(244,63,94,0.5);
+    }
+    .dot-anim { display: inline-block; animation: dotBlink 1.2s infinite; }
+    .dot-anim:nth-child(2) { animation-delay: .4s; }
+    .dot-anim:nth-child(3) { animation-delay: .8s; }
+    @keyframes dotBlink { 0%,100% { opacity:.2; } 50% { opacity:1; } }
+
+    .hint {
+      font-size: 9px;
+      color: rgba(255,255,255,0.18);
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="hd">
+    <div class="hd-title">⏱ Heures ZLAN</div>
+    <div class="hd-time" id="hd-time">—</div>
+  </div>
+  <div class="players-hd">
+    <div class="pname pname-me">Warllam</div>
+    <div class="pname pname-mate">Ryroy</div>
+  </div>
+  <div id="content">
+    <div class="loading">
+      Chargement<span class="dot-anim">.</span><span class="dot-anim">.</span><span class="dot-anim">.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const GAMES = [
+    { id: 'aoe4',           emoji: '⚔️',  label: 'Age of Empires IV' },
+    { id: 'satisfactory',   emoji: '🏭',  label: 'Satisfactory' },
+    { id: 'street_fighter', emoji: '🥊',  label: 'Street Fighter 6' },
+    { id: 'worms',          emoji: '🐛',  label: 'Worms WMD' }
+  ];
+
+  let prevValues = {};
+
+  function fmtH(h) {
+    if (h <= 0) return '0h';
+    if (h < 10)  return `${h.toFixed(1)}h`;
+    return `${Math.round(h)}h`;
+  }
+
+  // Smooth count-up animation
+  function countUp(el, fromVal, toVal, ms = 1500) {
+    const t0 = performance.now();
+    const step = now => {
+      const p = Math.min((now - t0) / ms, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmtH(fromVal + (toVal - fromVal) * ease);
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = fmtH(toVal);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function renderData(data) {
+    const me   = data.warllam || {};
+    const mate = data.ryroy   || {};
+
+    const hasAny = GAMES.some(g => (me[g.id] || 0) + (mate[g.id] || 0) > 0);
+
+    if (!hasAny) {
+      document.getElementById('content').innerHTML = `
+        <div class="no-data">Aucune donnée Steam</div>
+        <div class="hint">Remplis config.json avec ta clé API Steam</div>
+      `;
+      return;
+    }
+
+    const html = GAMES.map((g, i) => {
+      const hMe   = me[g.id]   || 0;
+      const hMate = mate[g.id] || 0;
+      if (hMe === 0 && hMate === 0) return '';   // skip unknown games
+
+      const max = Math.max(hMe, hMate, 0.1);
+      const pMe   = (hMe   / max * 100).toFixed(1);
+      const pMate = (hMate / max * 100).toFixed(1);
+      const meLeads = hMe >= hMate;
+
+      const delay = i * 0.25;
+
+      return `
+        <div class="gblock">
+          <div class="gtitle">
+            <span class="gem">${g.emoji}</span>
+            ${g.label.toUpperCase()}
+          </div>
+          <div class="bar-row">
+            <div class="bar-track">
+              <div class="bar-fill bar-me ${meLeads ? 'leader-me' : ''}"
+                   id="bar-me-${g.id}" data-pct="${pMe}" style="--sd:${delay}s"></div>
+            </div>
+            <div class="bhours ${meLeads ? 'leader-me' : ''}" id="h-me-${g.id}">0h</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-track">
+              <div class="bar-fill bar-mate ${!meLeads ? 'leader-mate' : ''}"
+                   id="bar-mate-${g.id}" data-pct="${pMate}" style="--sd:${delay + 0.12}s"></div>
+            </div>
+            <div class="bhours ${!meLeads ? 'leader-mate' : ''}" id="h-mate-${g.id}">0h</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('content').innerHTML = html || '<div class="no-data">Jeux non trouvés dans la bibliothèque</div>';
+
+    // Trigger bar + counter animations after paint
+    requestAnimationFrame(() => setTimeout(() => {
+      GAMES.forEach(g => {
+        const hMe   = me[g.id]   || 0;
+        const hMate = mate[g.id] || 0;
+        if (hMe === 0 && hMate === 0) return;
+
+        const barMe   = document.getElementById(`bar-me-${g.id}`);
+        const barMate = document.getElementById(`bar-mate-${g.id}`);
+        const elMe    = document.getElementById(`h-me-${g.id}`);
+        const elMate  = document.getElementById(`h-mate-${g.id}`);
+
+        if (barMe)   barMe.style.width   = barMe.dataset.pct   + '%';
+        if (barMate) barMate.style.width = barMate.dataset.pct + '%';
+
+        const keyMe   = `me-${g.id}`;
+        const keyMate = `mate-${g.id}`;
+        if (elMe)   countUp(elMe,   prevValues[keyMe]   || 0, hMe);
+        if (elMate) countUp(elMate, prevValues[keyMate] || 0, hMate);
+
+        prevValues[keyMe]   = hMe;
+        prevValues[keyMate] = hMate;
+      });
+    }, 80));
+  }
+
+  async function refresh() {
+    try {
+      const data = await fetch('/steam-hours').then(r => r.json());
+      renderData(data);
+      const d = new Date();
+      document.getElementById('hd-time').textContent =
+        `MAJ ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch {
+      document.getElementById('content').innerHTML =
+        '<div class="no-data">Serveur non joignable</div>';
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000); // re-fetch toutes les 5 min
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; font-family: 'Segoe UI', system-ui, sans-serif; padding: 10px; }
+
+    .panel {
+      background: rgba(9, 6, 11, 0.90);
+      border: 1px solid rgba(244,63,94,0.18);
+      border-left: 3px solid #F43F5E;
+      border-radius: 13px;
+      padding: 11px 13px;
+      width: 248px;
+      transition: border-left-color 0.6s ease;
+    }
+
+    /* Game + phase */
+    .game-row {
+      display: flex; align-items: center; gap: 7px; margin-bottom: 5px;
+    }
+    .game-em { font-size: 17px; line-height: 1; flex-shrink: 0; }
+    .game-name {
+      font-size: 13px; font-weight: 700; color: #FB7185;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.5s;
+    }
+
+    .phase-badge {
+      display: inline-block;
+      background: rgba(244,63,94,0.15);
+      border: 1px solid rgba(244,63,94,0.35);
+      border-radius: 20px; padding: 2px 8px;
+      font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #FB7185; margin-bottom: 8px;
+    }
+
+    /* Timer — caché si pas de valeur */
+    .timer-wrap { margin-bottom: 8px; }
+    .timer {
+      font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums;
+      letter-spacing: 1px; color: #F1F5F9; line-height: 1;
+      transition: color 0.3s;
+    }
+    .timer.running { color: #22C55E; }
+    .timer.urgent  {
+      color: #EF4444;
+      animation: blink .45s ease infinite alternate;
+    }
+    @keyframes blink { to { opacity: .4; } }
+
+    /* Score */
+    .score-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; margin-bottom: 7px;
+    }
+    .sl  { font-size: 10px; color: rgba(255,255,255,.35); }
+    .su  { font-size: 19px; font-weight: 800; color: #22C55E; }
+    .st  { font-size: 19px; font-weight: 800; color: #EF4444; }
+    .ss  { font-size: 14px; color: rgba(255,255,255,.18); }
+
+    /* Lives */
+    .lives-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
+    }
+    .lives-label { font-size: 10px; color: rgba(255,255,255,.35); }
+    .hearts { display: flex; gap: 2px; font-size: 15px; }
+    .heart.lost { filter: grayscale(1); opacity: .18; }
+
+    /* Divider */
+    .divider { height: 1px; background: rgba(244,63,94,0.1); margin-bottom: 7px; }
+
+    /* Info */
+    .info-block { display: flex; flex-direction: column; gap: 4px; }
+    .info-line  { display: flex; justify-content: space-between; font-size: 11px; }
+    .ik { color: rgba(255,255,255,.32); }
+    .iv { color: rgba(255,255,255,.78); font-weight: 500; }
+
+    /* Next match */
+    .next-match {
+      margin-top: 7px; padding: 6px 8px;
+      background: rgba(244,63,94,0.08);
+      border: 1px solid rgba(244,63,94,0.25);
+      border-radius: 7px; font-size: 10px; color: #FB7185; line-height: 1.4;
+    }
+    .next-label {
+      font-size: 9px; text-transform: uppercase;
+      letter-spacing: 1px; opacity: .6; margin-bottom: 2px;
+    }
+
+    /* Subtle rose glow pulse */
+    @keyframes rosePulse {
+      0%,100% { box-shadow: 0 0 12px rgba(244,63,94,0.08); }
+      50%      { box-shadow: 0 0 22px rgba(244,63,94,0.20); }
+    }
+    .panel { animation: rosePulse 5s ease infinite; }
+  </style>
+</head>
+<body>
+<div class="panel" id="panel">
+  <div class="game-row">
+    <span class="game-em" id="g-em">🎮</span>
+    <span class="game-name" id="g-name">En attente...</span>
+  </div>
+  <div class="phase-badge" id="phase">Seeding</div>
+
+  <div class="timer-wrap" id="timer-wrap">
+    <div class="timer" id="timer"></div>
+  </div>
+
+  <div class="score-row">
+    <span class="sl">Nous</span>
+    <span class="su" id="s-us">0</span>
+    <span class="ss">—</span>
+    <span class="st" id="s-them">0</span>
+    <span class="sl">Eux</span>
+  </div>
+
+  <div class="lives-row" id="lives-row" style="display:none">
+    <span class="lives-label">Vies</span>
+    <div class="hearts">
+      <span class="heart" id="h1">❤️</span>
+      <span class="heart" id="h2">❤️</span>
+      <span class="heart" id="h3">❤️</span>
+    </div>
+  </div>
+
+  <div class="divider" id="divider" style="display:none"></div>
+
+  <div class="info-block">
+    <div class="info-line" id="row-rank"   style="display:none">
+      <span class="ik">🏆 Rang</span>
+      <span class="iv" id="v-rank"></span>
+    </div>
+    <div class="info-line" id="row-record" style="display:none">
+      <span class="ik">⚡ Record</span>
+      <span class="iv" id="v-record"></span>
+    </div>
+    <div class="info-line" id="row-time"   style="display:none">
+      <span class="ik">⏰ Temps</span>
+      <span class="iv" id="v-time"></span>
+    </div>
+  </div>
+
+  <div class="next-match" id="next-match" style="display:none">
+    <div class="next-label">⚡ Prochain match</div>
+    <div id="next-val"></div>
+  </div>
+</div>
+
+<script>
+  let state = null;
+
+  function connect() {
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') { state = msg.data; render(); }
+    };
+    ws.onclose = () => setTimeout(connect, 2000);
+  }
+
+  function show(id, visible, displayType = 'block') {
+    document.getElementById(id).style.display = visible ? displayType : 'none';
+  }
+
+  function getTimerVal() {
+    if (!state?.timer) return 0;
+    const t = state.timer;
+    if (!t.running || !t.startTime) return t.initialValue;
+    const elapsed = (Date.now() - t.startTime) / 1000;
+    return t.direction === 'down' ? Math.max(0, t.initialValue - elapsed) : t.initialValue + elapsed;
+  }
+
+  function fmt(secs) {
+    const s = Math.floor(Math.abs(secs));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function render() {
+    if (!state) return;
+
+    // Game + accent color
+    if (state.game) {
+      document.getElementById('g-em').textContent   = state.game.emoji;
+      document.getElementById('g-name').textContent = state.game.name;
+      document.getElementById('g-name').style.color = state.game.accent;
+      document.getElementById('panel').style.borderLeftColor = state.game.accent;
+    }
+
+    // Phase
+    document.getElementById('phase').textContent = state.phase?.label || '';
+
+    // Score
+    document.getElementById('s-us').textContent   = state.score.us;
+    document.getElementById('s-them').textContent = state.score.them;
+
+    // Lives (Knockout only)
+    const isKO = state.phase?.id === 'knockout';
+    show('lives-row', isKO, 'flex');
+    for (let i = 1; i <= 3; i++)
+      document.getElementById(`h${i}`).classList.toggle('lost', i > state.lives);
+
+    // Info rows
+    const r = state.rank, rec = state.record, t = state.timeOnGame;
+    show('row-rank',   !!r,   'flex');
+    show('row-record', !!rec, 'flex');
+    show('row-time',   !!t,   'flex');
+    if (r)   document.getElementById('v-rank').textContent   = r;
+    if (rec) document.getElementById('v-record').textContent = rec;
+    if (t)   document.getElementById('v-time').textContent   = t;
+
+    // Next match
+    const hasNext = !!state.nextMatch;
+    show('next-match', hasNext);
+    if (hasNext) document.getElementById('next-val').textContent = state.nextMatch;
+
+    // Divider
+    show('divider', r || rec || t || hasNext);
+  }
+
+  // Smooth timer (100ms tick, hides when no value)
+  setInterval(() => {
+    if (!state?.timer) return;
+    const hasTimer = state.timer.initialValue > 0 || state.timer.running;
+    show('timer-wrap', hasTimer);
+    if (!hasTimer) return;
+
+    const val = getTimerVal();
+    const el = document.getElementById('timer');
+    el.textContent = fmt(val);
+    el.className = 'timer';
+    if (state.timer.running) el.classList.add('running');
+    if (state.timer.direction === 'down' && val < 30 && val > 0 && state.timer.running)
+      el.classList.add('urgent');
+  }, 100);
+
+  connect();
+</script>
+</body>
+</html>
